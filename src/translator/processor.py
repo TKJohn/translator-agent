@@ -6,8 +6,9 @@
 """
 
 import os
+import concurrent.futures
 from tqdm import tqdm
-from typing import List
+from typing import List, Dict, Tuple
 
 from .config import logger
 from .models import TranslationUnit, TranslationContext, TranslationResult
@@ -131,21 +132,47 @@ class Processor:
             units: 翻译单元列表
             output_file: 输出文件路径
         """
-        for i, unit in enumerate(tqdm(units, desc="翻译进度")):
-            # 更新当前处理的单元索引
-            self.context.update_progress(index=i)
+        # 存储翻译结果的字典，键为原始索引，值为翻译后的内容
+        results: Dict[int, str] = {}
 
+        # 定义处理单个翻译单元的函数
+        def process_unit(index: int, unit: TranslationUnit) -> Tuple[int, str]:
             # 翻译当前单元
             translated_unit = self.translator.translate_unit(unit)
+            # 返回索引和翻译结果
+            return index, translated_unit.polished_translation
 
-            # 追加写入该单元的翻译结果
-            self._append_to_output_file(
-                output_file, translated_unit.polished_translation
-            )
+        # 使用线程池并行处理翻译任务
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # 提交所有翻译任务到线程池
+            future_to_index = {
+                executor.submit(process_unit, i, unit): i
+                for i, unit in enumerate(units)
+            }
 
-            # 打印进度
-            progress = (i + 1) / len(units) * 100
-            logger.info(f"已完成 {i + 1}/{len(units)} 个翻译单元 ({progress:.1f}%)")
+            # 使用tqdm显示进度
+            for future in tqdm(
+                concurrent.futures.as_completed(future_to_index),
+                total=len(units),
+                desc="翻译进度",
+            ):
+                index, translation = future.result()
+                # 存储结果，保留原始索引
+                results[index] = translation
+                # 更新当前处理的单元索引（虽然是并行的，但仍然记录进度）
+                self.context.update_progress(index=index)
+                # 打印进度
+                completed = len(results)
+                progress = completed / len(units) * 100
+                logger.info(
+                    f"已完成 {completed}/{len(units)} 个翻译单元 ({progress:.1f}%)"
+                )
+
+        # 按原始顺序写入结果
+        for i in range(len(units)):
+            self._append_to_output_file(output_file, results[i])
+
+        logger.info("所有翻译单元处理完成，已按原始顺序写入结果文件。")
 
     def _append_to_output_file(self, output_file: str, content: str) -> None:
         """
