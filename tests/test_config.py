@@ -20,14 +20,16 @@ class TestConfig:
         with patch.dict(os.environ, {}, clear=True):
             config = Config()
             # 测试默认值设置正确
-            assert config.model_name == "deepseek-chat"
+            assert config.chat_model_name == "deepseek-chat"
+            assert config.reasoner_model_name == "deepseek-reasoner"
             assert config.max_tokens == 8192
 
     def test_config_from_env(self, tmpdir):
         """测试从环境变量读取配置"""
         test_env = {
             "DEEPSEEK_API_KEY": "test-api-key",
-            "MODEL_NAME": "test-model",
+            "CHAT_MODEL_NAME": "test-chat-model",
+            "REASONER_MODEL_NAME": "test-reasoner-model",
             "MAX_TOKENS": "1024",
         }
 
@@ -35,7 +37,8 @@ class TestConfig:
             config = Config()
             # 测试环境变量被正确读取
             assert config.api_key == "test-api-key"
-            assert config.model_name == "test-model"
+            assert config.chat_model_name == "test-chat-model"
+            assert config.reasoner_model_name == "test-reasoner-model"
             assert config.max_tokens == 1024
 
     def test_warning_for_missing_api_key(self, caplog):

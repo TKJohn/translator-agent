@@ -46,7 +46,8 @@ class Config:
         self.api_base = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
 
         # 模型设置
-        self.model_name = os.getenv("MODEL_NAME", "deepseek-chat")
+        self.chat_model_name = os.getenv("CHAT_MODEL_NAME", "deepseek-chat")
+        self.reasoner_model_name = os.getenv("REASONER_MODEL_NAME", "deepseek-reasoner")
         self.max_tokens = int(os.getenv("MAX_TOKENS", "8192"))
 
         # 验证配置

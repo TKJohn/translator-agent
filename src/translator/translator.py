@@ -46,10 +46,7 @@ class Translator:
         # 1. 使用术语表翻译原文
         self._translate_text(unit)
 
-        # 2. 检查翻译并提供修改建议
-        self._review_translation(unit)
-
-        # 3. 最终润色
+        # 2. 最终润色
         self._polish_translation(unit)
 
         return unit
@@ -102,34 +99,6 @@ class Translator:
         )
         return unit
 
-    def _review_translation(self, unit: TranslationUnit) -> None:
-        """
-        审查翻译质量
-
-        Args:
-            unit: 翻译单元
-
-        Returns:
-            包含审查建议的翻译单元
-        """
-        # 如果翻译失败或为空，跳过审查
-        if not unit.translation or unit.translation == unit.original_text:
-            unit.suggestions = ""
-            return unit
-
-        # 只有当有术语时，才将术语信息添加到请求中
-        terminology_str = ""
-        if unit.technical_terms:
-            terminology_str = self.terminology_manager.get_terminology_string(
-                unit.technical_terms
-            )
-
-        # 调用API审查翻译
-        unit.suggestions = api_client.review_translation(
-            unit.original_text, unit.translation, terminology_str
-        )
-        return unit
-
     def _polish_translation(self, unit: TranslationUnit) -> None:
         """
         润色翻译
@@ -161,6 +130,6 @@ class Translator:
 
         # 调用API润色翻译
         unit.polished_translation = api_client.polish_translation(
-            unit.original_text, unit.translation, unit.suggestions, terminology_str
+            unit.original_text, unit.translation, terminology_str
         )
         return unit

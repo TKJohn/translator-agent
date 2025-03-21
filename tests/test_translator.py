@@ -41,8 +41,6 @@ class TestTranslator:
         with patch.object(
             translator, "_translate_text", return_value=unit
         ) as mock_translate_text, patch.object(
-            translator, "_review_translation", return_value=unit
-        ) as mock_review, patch.object(
             translator, "_polish_translation", return_value=unit
         ) as mock_polish:
 
@@ -50,7 +48,6 @@ class TestTranslator:
 
             # 验证调用流程
             mock_translate_text.assert_called_once()
-            mock_review.assert_called_once()
             mock_polish.assert_called_once()
 
     def test_translate_text(self, translator):
@@ -72,35 +69,6 @@ class TestTranslator:
 
             # 验证翻译结果
             assert result.translation == "数据结构示例"
-
-    def test_review_translation_empty(self, translator):
-        """测试空翻译不进行审查"""
-        unit = TranslationUnit(original_text="Test", translation="")
-
-        result = translator._review_translation(unit)
-
-        # 验证空翻译时跳过审查
-        assert result is not None
-        assert result.suggestions == ""
-
-    def test_review_translation(self, translator):
-        """测试翻译审查"""
-        unit = TranslationUnit(
-            original_text="Test", translation="测试", technical_terms=[]
-        )
-
-        with patch(
-            "src.translator.terminology_manager.TerminologyManager.get_terminology_string",
-            return_value="",
-        ), patch(
-            "src.translator.api_client.api_client.review_translation",
-            return_value="翻译质量良好，无需修改",
-        ):
-
-            result = translator._review_translation(unit)
-
-            # 验证审查结果
-            assert result.suggestions == "翻译质量良好，无需修改"
 
     def test_polish_translation_empty(self, translator):
         """测试空翻译不进行润色"""

@@ -55,36 +55,6 @@ class TestApiClient:
             # 验证错误时返回原文
             assert result == original_text
 
-    def test_review_translation(self, api_client):
-        """测试翻译审查API调用"""
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "1. 建议修改..."
-
-        with patch(
-            "openai.resources.chat.completions.Completions.create",
-            return_value=mock_response,
-        ):
-            result = api_client.review_translation(
-                "Original text", "Translated text", "terminology string"
-            )
-
-            # 验证返回结果
-            assert result == "1. 建议修改..."
-
-    def test_review_translation_error_handling(self, api_client):
-        """测试翻译审查错误处理"""
-        with patch(
-            "openai.resources.chat.completions.Completions.create",
-            side_effect=Exception("API error"),
-        ):
-            result = api_client.review_translation(
-                "Original", "Translation", "terminology"
-            )
-
-            # 验证错误时返回默认消息
-            assert result == "无法提供修改建议"
-
     def test_polish_translation(self, api_client):
         """测试翻译润色API调用"""
         mock_response = MagicMock()
@@ -96,7 +66,7 @@ class TestApiClient:
             return_value=mock_response,
         ):
             result = api_client.polish_translation(
-                "Original text", "Translated text", "Suggestions", "terminology string"
+                "Original text", "Translated text", "terminology string"
             )
 
             # 验证返回结果
@@ -111,7 +81,7 @@ class TestApiClient:
             side_effect=Exception("API error"),
         ):
             result = api_client.polish_translation(
-                "Original", translation, "Suggestions", "terminology"
+                "Original", translation, "terminology"
             )
 
             # 验证错误时返回原翻译
@@ -135,7 +105,7 @@ class TestApiClient:
             # 验证API调用参数
             mock_create.assert_called_once()
             args, kwargs = mock_create.call_args
-            assert kwargs["temperature"] == 0.5
+            assert kwargs["temperature"] == 0.3
 
     def test_call_api_error_handling(self, api_client):
         """测试底层API调用错误处理"""
@@ -144,7 +114,7 @@ class TestApiClient:
             side_effect=Exception("API error"),
         ):
             with pytest.raises(Exception) as excinfo:
-                api_client._call_api("System prompt", "User prompt")
+                api_client._call_api("model", "System prompt", "User prompt")
 
             # 验证异常被抛出
             assert "API error" in str(excinfo.value)
