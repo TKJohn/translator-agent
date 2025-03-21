@@ -53,7 +53,9 @@ class ApiClient:
 
         try:
             # 调用API
-            response_text = self._call_api(system_prompt, "", temperature=1.3)
+            response_text = self._call_api(
+                config.chat_model_name, system_prompt, "", temperature=1.3
+            )
             return self._extract_terms(response_text)
         except Exception as e:
             logger.warning(f"术语提取失败: {str(e)}")
@@ -124,124 +126,78 @@ class ApiClient:
             """
         try:
             return self._call_api(
-                system_prompt=system_prompt, user_prompt="", temperature=1.3
+                config.chat_model_name,
+                system_prompt=system_prompt,
+                user_prompt="",
+                temperature=1.3,
             )
         except Exception as e:
             logger.error(f"调用翻译API时出错: {str(e)}")
             # 如果翻译失败，返回原文
             return text
 
-    def review_translation(
+    def polish_translation(
         self, original: str, translation: str, terminology: str
     ) -> str:
         """
-        对翻译结果进行审查，提供改进建议
-
-        Args:
-            original: 原文
-            translation: 翻译文本
-            terminology: 术语表字符串
-            system_prompt: 系统提示词
-
-        Returns:
-            审查意见
-        """
-        logger.info("调用翻译审核API")
-
-        system_prompt = f"""
-            <角色>你是一位资深计算机书籍审校专家
-            <任务>对以下中文译稿进行批判性审阅。提供精确描述，避免含糊其辞，并且无需增添原文中未包含的内容或格式
-            <要求>
-            重点检查以下方面：
-            a) 将英文的被动语态改为中文的主动语态
-            b) 技术概念表述偏差
-            c) 中英文标点符号使用规范
-            d) 长难句逻辑断裂
-            e) 文化语境适配问题
-            f) 保留原文的Markdown格式
-            按问题严重程度分级标注（关键/重要/建议）
-            每个问题需注明：
-            原文
-            问题类型
-            具体描述
-            修改建议（不实际修改文本）
-
-            <直接翻译>
-            {translation}
-            <原文>
-            {original}
-            <术语>
-            {terminology}
-            """
-        try:
-            response = self._call_api(system_prompt, "", temperature=1.3)
-
-            # 如果响应为空或出错，返回默认消息
-            if not response or response.strip() == "":
-                logger.warning("翻译审查返回空响应")
-                return "无法提供修改建议"
-            return response
-        except Exception as e:
-            logger.error(f"调用翻译审核API时出错: {str(e)}")
-            return "无法提供修改建议"
-
-    def polish_translation(
-        self, original: str, translation: str, suggestions: str, terminology: str
-    ) -> str:
-        """
-        根据审核建议润色翻译
+        润色翻译
 
         Args:
             original: 原文
             translation: 初步翻译
-            suggestions: 修改建议
             terminology: 术语表
 
         Returns:
             润色后的翻译
         """
-        system_prompt = f"""
-            <角色>你是一位专业的计算机专业书籍润色专家
-            <任务>根据校对报告优化翻译稿件
-            <要求>
-            分优先级处理三类问题：
-            关键问题（技术错误）必须修正
-            重要问题（表述不清）重点优化
-            建议问题（语感提升）酌情调整
-            优化时特别注意：
-            a) 技术准确性优先于语言优美
-            b) 保持术语一致性
-            c) 代码注释对齐格式
-            d) 图表标签双语对照
-            e) 技术缩略语首次展开
-            f) 保留原文的Markdown格式
-            g) 中文翻译信达雅
-            在此过程中，我们将保持原有格式不变。只输出翻译结果。
+        user_prompt = f"""
+你是一名擅长将英文计算机技术书籍翻译为流畅中文表达的翻译员，能够理解英文的俚语、深层次意思，也同样可以用通顺、地道的中文表达。请将一个已有的翻译进行润色
 
-            <直接翻译>
-            {translation}
-            <直接翻译的问题>
-            {suggestions}
-            <原文>
-            {original}
-            <专有名词>
-            {terminology}
+要求：
+使用用尽可能地道的简体中文表达
+严格遵循术语表译法
+信达雅
+中文表达专业流畅，无翻译腔
+拆分嵌套从句（比如英文长句改为中文流水句）
+消除翻译腔（比如减少被字句、“进行”式表达）
+技术隐喻本土化\n专业表达校准（如区分验证、校验等技术动词）
+原文Markdown格式完整保留
+
+输出：只输出翻译结果文字，不需要输出改动说明、修改建议等
+
+<原文>
+{original}
+
+<初步翻译>
+{translation}
+
+<专有名词>
+{terminology}
+
         """
+
         try:
             return self._call_api(
-                system_prompt=system_prompt, user_prompt="", temperature=0.2
+                model_name=config.reasoner_model_name,
+                system_prompt="",
+                user_prompt=user_prompt,
             )
         except Exception as e:
             logger.error(f"调用翻译润色API时出错: {str(e)}")
             return translation
 
     def _call_api(
-        self, system_prompt: str, user_prompt: str, temperature: float = 0.3
+        self,
+        model_name: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.3,
     ) -> str:
         """
         调用API执行请求
 
         Args:
+            model_name: 模型名称
             system_prompt: 系统提示词
             user_prompt: 用户提示词
             temperature: 温度参数，控制随机性
@@ -251,7 +207,7 @@ class ApiClient:
         """
         try:
             logger.info("准备调用API")
-            logger.info(f"模型: {config.model_name}")
+            logger.info(f"模型: {model_name}")
             logger.info(f"系统提示词: {system_prompt}")
             logger.info(f"用户提示词: {user_prompt}")
             logger.info(f"温度参数: {temperature}")
@@ -269,7 +225,7 @@ class ApiClient:
             # 调用API
             start_time = time.time()
             response = client.chat.completions.create(
-                model=config.model_name,
+                model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -281,7 +237,6 @@ class ApiClient:
 
             # 记录响应信息
             logger.info(f"API调用完成，耗时: {end_time - start_time:.2f}秒")
-            logger.info(f"响应令牌数: {response.usage.completion_tokens}")
             logger.info(f"总令牌数: {response.usage.total_tokens}")
             logger.info(f"响应: {response.choices[0].message.content}")
 
